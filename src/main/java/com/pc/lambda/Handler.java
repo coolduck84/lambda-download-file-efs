@@ -66,30 +66,6 @@ public class Handler implements RequestHandler<String, String> {
 			logger.log("\nException while performing file operations: " + e.getMessage());
 		}
 		
-		/*
-		 * if (dir == null) { logger.log("\nDirectory Unavailable"); } else { try
-		 * (DirectoryStream<Path> stream = Files.newDirectoryStream(dir)) {
-		 * logger.log("\n!! Directory Available !!"); int count = 0; for (Path file :
-		 * stream) { count++; logger.log("\nFile/Folder Name:" +
-		 * file.getFileName().toString()); }
-		 * 
-		 * if (count == 0) {
-		 * logger.log("\nNo files are available inside the current directory."); Path
-		 * newFilePath = Paths.get(event + "/" + FILE_NAME); try { // Path file =
-		 * Files.createFile(newFilePath); // logger.log("\nFile created successfully: "
-		 * + file.toAbsolutePath().toString());
-		 * 
-		 * writeFile(newFilePath); logger.log("\nFile written successfully: " +
-		 * newFilePath.toAbsolutePath().toString());
-		 * 
-		 * readFile(newFilePath); logger.log("\nFile read successfully: " +
-		 * newFilePath.toAbsolutePath().toString()); } catch (Exception e) {
-		 * logger.log("\nException while creating a new file: " + e.getMessage()); } } }
-		 * catch (Exception x) { // IOException can never be thrown by the iteration. //
-		 * In this snippet, it can only be thrown by newDirectoryStream.
-		 * logger.log("\nException: " + x.getMessage()); } }
-		 */
-
 		logger.log("\n\n");
 		return "Processed successfully";
 	}
