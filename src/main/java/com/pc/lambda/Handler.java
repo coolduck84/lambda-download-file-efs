@@ -1,21 +1,13 @@
 package com.pc.lambda;
 
-import static java.nio.file.StandardOpenOption.APPEND;
-import static java.nio.file.StandardOpenOption.CREATE;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
-import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.nio.file.OpenOption;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
@@ -37,18 +29,30 @@ public class Handler implements RequestHandler<String, String> {
 	private static Gson gson = null;
 	private static LambdaLogger logger = null;
 
-	public String handleRequest(String fileDirectory, Context context) {
+	public String handleRequest(String input, Context context) {
 
 		logger = context.getLogger();
 		gson = new GsonBuilder().setPrettyPrinting().create();
-		final String FILE_NAME = fileDirectory + "/" + "testFile.xlsx";
 
-		logger.log("\nevent => " + gson.toJson(fileDirectory));
+		// Read all of the environment variables
+		Boolean readFile = Boolean.valueOf(System.getenv("readFile"));
+		Boolean writeFile = Boolean.valueOf(System.getenv("writeFile"));
+		Boolean writeReadLogs = Boolean.valueOf(System.getenv("writeReadLogs"));
+		String fileDirectory = System.getenv("efsFolder");
+		String fileName = System.getenv("fileName");
+
+		// Prepare the file name to be processed
+		String fullFilePath = fileDirectory + fileName;
+
+		logger.log("\nreadFile => " + readFile);
+		logger.log("\nwriteFile => " + writeFile);
+		logger.log("\nwriteReadLogs => " + writeReadLogs);
+		logger.log("\nfileDirectory => " + fileDirectory);
+		logger.log("\nfileName => " + fileName);
+		logger.log("\nfullFilePath => " + fullFilePath);
 		logger.log("\ncontext => " + gson.toJson(context));
 
-		String os = System.getProperty("os.name");
-		logger.log("\nCurrent Opereting System => " + os);
-
+		// Create the file directory if it doesn't exist
 		Path dir = Paths.get(fileDirectory);
 		if (Files.exists(dir)) {
 			logger.log("\n!! Directory Available !!");
@@ -60,87 +64,52 @@ public class Handler implements RequestHandler<String, String> {
 				logger.log("\n!! Created Directory !!");
 			} catch (IOException e) {
 				logger.log("\n!! Error while creating directory !!");
+				return "\\n!! Error while creating directory !!";
 			}
 		}
 
-		Path newFilePath = Paths.get(FILE_NAME);
+		// Verify whether the file to be processed exists or not
+		Path newFilePath = Paths.get(fullFilePath);
 		if (Files.exists(newFilePath)) {
-			logger.log("\nFile Available: " + newFilePath.toAbsolutePath().toString());
+			logger.log("\nFile is available: " + newFilePath.toAbsolutePath().toString());
 		} else {
-			logger.log("\nFile Unavailable: " + newFilePath.toAbsolutePath().toString());
+			logger.log("\nFile is unavailable: " + newFilePath.toAbsolutePath().toString());
 		}
-
-		/*
-		 * try { writeFile(newFilePath); logger.log("\nFile written successfully: " +
-		 * newFilePath.toAbsolutePath().toString());
-		 * 
-		 * readFile(newFilePath); logger.log("\nFile read successfully: " +
-		 * newFilePath.toAbsolutePath().toString()); } catch (Exception e) {
-		 * logger.log("\nException while performing file operations: " +
-		 * e.getMessage()); }
-		 */
 
 		try {
-			writeExcelFile(FILE_NAME);
-			logger.log("\nFile written successfully: " + FILE_NAME);
-			
-			newFilePath = Paths.get(FILE_NAME);
-			if (Files.exists(newFilePath)) {
-				logger.log("\nFile Available: " + newFilePath.toAbsolutePath().toString());
-			} else {
-				logger.log("\nFile Unavailable: " + newFilePath.toAbsolutePath().toString());
+			// Write File
+			if (writeFile) {
+				writeExcelFile(fullFilePath);
+				logger.log("\nFile written successfully: " + fullFilePath);
 			}
 
-			readExcelFile(FILE_NAME);
-			logger.log("\nFile read successfully: " + FILE_NAME);
+			// Read File
+			if (readFile) {
+				readExcelFile(fullFilePath, writeReadLogs);
+				logger.log("\nFile read successfully: " + fullFilePath);
+			}
 		} catch (Exception e) {
-			logger.log("\nException while performing file operations: " + e.getMessage());
+			logger.log("\nException while performing file operations: " + e.getMessage() + " \nStack Trace: "
+					+ e.getStackTrace());
 		}
 
 		logger.log("\n\n");
 		return "Processed successfully";
 	}
 
-	private void writeFile(Path file) throws IOException {
-		// Create the set of options for appending to the file.
-		Set<OpenOption> options = new HashSet<OpenOption>();
-		options.add(APPEND);
-		options.add(CREATE);
-
-		try (SeekableByteChannel sbc = Files.newByteChannel(file, options)) {
-			// Convert the string to a ByteBuffer.
-			String s = "================ Testing out the file reading and writing =========================";
-			byte data[] = s.getBytes();
-			ByteBuffer bb = ByteBuffer.wrap(data);
-			sbc.write(bb);
-		}
-	}
-
-	private void readFile(Path file) throws IOException {
-		try (SeekableByteChannel sbc = Files.newByteChannel(file)) {
-			final int BUFFER_CAPACITY = 100;
-			ByteBuffer buf = ByteBuffer.allocate(BUFFER_CAPACITY);
-
-			// Read the bytes with the proper encoding for this platform. If you skip this
-			// step, you might see foreign or ill-eligible characters.
-			String encoding = System.getProperty("file.encoding");
-			System.out.print("\nEncoding: " + encoding);
-			while (sbc.read(buf) > 0) {
-				buf.flip();
-				System.out.print("\n");
-				System.out.print(Charset.forName(encoding).decode(buf));
-				System.out.print("\n");
-				buf.clear();
-			}
-		}
-	}
-
 	private void writeExcelFile(String filePath) throws IOException {
+
+		logger.log("\nInside writeExcelFile method.");
 
 		// Blank workbook
 		try (XSSFWorkbook workbook = new XSSFWorkbook()) {
+
+			logger.log("\nInitialized an instance of XSSFWorkbook");
+
 			// Create a blank sheet
 			XSSFSheet sheet = workbook.createSheet("Sample Data");
+
+			logger.log("\nCreated blank sheet.");
 
 			// This data needs to be written (Object[])
 			Map<String, Object[]> data = new TreeMap<String, Object[]>();
@@ -166,46 +135,60 @@ public class Handler implements RequestHandler<String, String> {
 				}
 			}
 
+			logger.log("\nPopulated data.");
+
 			// Write the workbook in file system
 			try (FileOutputStream out = new FileOutputStream(new File(filePath))) {
+				logger.log("\nInitialized an instance of FileOutputStream.");
 				workbook.write(out);
 			}
+
+			logger.log("\nwriteExcelFile method executed.");
 		}
 	}
 
-	private void readExcelFile(String filePath) throws FileNotFoundException, IOException {
+	private void readExcelFile(String filePath, Boolean writeReadLogs) throws FileNotFoundException, IOException {
 		try (FileInputStream file = new FileInputStream(new File(filePath))) {
+
+			logger.log("\nInside readExcelFile method.");
 
 			// Create Workbook instance holding reference to .xlsx file
 			try (XSSFWorkbook workbook = new XSSFWorkbook(file)) {
+				for (int sheetIndex = 0; sheetIndex < workbook.getNumberOfSheets(); ++sheetIndex) {
+					// Get the desired sheet from the workbook
+					XSSFSheet sheet = workbook.getSheetAt(sheetIndex);
 
-				// Get first/desired sheet from the workbook
-				XSSFSheet sheet = workbook.getSheetAt(0);
+					logger.log("\nSheet Name: " + sheet.getSheetName());
+					logger.log("\nRow Count: " + sheet.getPhysicalNumberOfRows());
 
-				logger.log("\n");
-				
-				// Iterate through each rows one by one
-				Iterator<Row> rowIterator = sheet.iterator();
-				while (rowIterator.hasNext()) {
-					Row row = rowIterator.next();
-					// For each row, iterate through all the columns
-					Iterator<Cell> cellIterator = row.cellIterator();
+					// Iterate through each rows one by one
+					Iterator<Row> rowIterator = sheet.iterator();
+					while (rowIterator.hasNext()) {
+						Row row = rowIterator.next();
+						// For each row, iterate through all the columns
+						Iterator<Cell> cellIterator = row.cellIterator();
 
-					while (cellIterator.hasNext()) {
-						Cell cell = cellIterator.next();
-						// Check the cell type and format accordingly
-						switch (cell.getCellType()) {
-						case Cell.CELL_TYPE_NUMERIC:
-							logger.log(cell.getNumericCellValue() + "\t");
-							break;
-						case Cell.CELL_TYPE_STRING:
-							logger.log(cell.getStringCellValue() + "\t");
-							break;
+						while (cellIterator.hasNext()) {
+							Cell cell = cellIterator.next();
+							// Check the cell type and format accordingly
+							switch (cell.getCellType()) {
+							case Cell.CELL_TYPE_NUMERIC:
+								if (writeReadLogs) {
+									logger.log(cell.getNumericCellValue() + "\t");
+								}
+								break;
+							default:
+								if (writeReadLogs) {
+									logger.log(cell.getStringCellValue() + "\t");
+								}
+								break;
+							}
 						}
 					}
-					logger.log("\n ");
 				}
 			}
+
+			logger.log("\nreadExcelFile method executed.");
 		}
 	}
 }
