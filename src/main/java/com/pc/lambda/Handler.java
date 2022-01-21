@@ -70,7 +70,8 @@ public class Handler implements RequestHandler<String, String> {
 
 		// Verify whether the file to be processed exists or not
 		Path newFilePath = Paths.get(fullFilePath);
-		if (Files.exists(newFilePath)) {
+		Boolean fileExists = Files.exists(newFilePath);
+		if (fileExists) {
 			logger.log("\nFile is available: " + newFilePath.toAbsolutePath().toString());
 		} else {
 			logger.log("\nFile is unavailable: " + newFilePath.toAbsolutePath().toString());
@@ -80,11 +81,12 @@ public class Handler implements RequestHandler<String, String> {
 			// Write File
 			if (writeFile) {
 				writeExcelFile(fullFilePath);
+				fileExists = true;
 				logger.log("\nFile written successfully: " + fullFilePath);
 			}
 
 			// Read File
-			if (readFile) {
+			if (fileExists && readFile) {
 				readExcelFile(fullFilePath, writeReadLogs);
 				logger.log("\nFile read successfully: " + fullFilePath);
 			}
